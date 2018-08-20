@@ -4,22 +4,43 @@
          (except-in "base.rkt" eval if)
          (prefix-in base/ "base.rkt"))
 
+(provide bound
+         valid?
+         eval
+         expand
+         expand-term)
+
 
 (define-extended-language bound base
   (t .... = x)
   (x variable-not-otherwise-mentioned)
   #:binding-forms
-  (t_l ... = (x) (t ...) #:refers-to x t_r ...))
+  (t_l ... = (x) v #:refers-to x t_r ...))
+
+
+(define-judgment-form bound
+  #:mode (valid? I)
+  #:contract (valid? v)
+
+  [(valid? ())]
+
+  [(valid? (t v ...))
+   (side-condition (not (equal? (term t) (term =))))
+   (valid? v) ...]
+
+  [(valid? (= (x) v v_r ...))
+   (valid? v)
+   (valid? v_r) ...])
 
 
 (define eval
   (extend-reduction-relation
    base/eval
    bound
-   #:domain p
+   #:domain v
 
-   (--> (t ... = (x) (t_x ...) p_x p ...)
-        (t ... ,@(term (substitute (t_x ...) x p_x)) p ...)
+   (--> (t ... = (x) v_b v_x v ...)
+        (t ... ,@(term (substitute v_b x v_x)) v ...)
         Bind)))
 
 
@@ -28,30 +49,38 @@
 
 
 (define-metafunction bound
-  bind-all : t -> t
-  [(bind-all (= (x) (t_x ...) t ...))
-   (,@(term (bind-in (t_x ...) x)) ,@(term (bind-all (t ...))))]
-  [(bind-all (t_e t ...))
-   ((bind-all t_e) ,@(term (bind-all (t ...))))]
-  [(bind-all t) t])
+  expand : t ... -> (t ...)
+  [(expand = (x) v t_tail ...)
+   (↓ t_bound ... t_cont ...)
+   (where (t_bound ...) (bind-body x (expand-term v)))
+   (where (t_cont ...) (expand t_tail ...))]
+  [(expand t t_tail ...)
+   ((expand-term t) t_cont ...)
+   (where (t_cont ...) (expand t_tail ...))]
+  [(expand) ()])
 
 (define-metafunction bound
-  bind-in : p x -> t
-  [(bind-in p x) (↓ ,@(term (bind-with (bind-all p) x)))])
+  expand-term : t -> t
+  [(expand-term (t ...)) (expand t ...)]
+  [(expand-term t) t])
 
 (define-metafunction bound
-  bind-with : p x -> p
-  [(bind-with (t_t t ...) x)
-   (,@(term (bind-term t_t x)) ,@(term (bind-with (t ...) x)))]
-  [(bind-with () x) ()])
+  bind-body : x v -> v
+  [(bind-body x (t t_tail ...))
+   (t_bound ... t_cont ...)
+   (where (t_bound ...) (bind-name x t))
+   (where (t_cont ...) (bind-body x (t_tail ...)))]
+  [(bind-body x ()) ()])
 
 (define-metafunction bound
-  bind-term : t x -> t
-  [(bind-term x x) (×)]
-  [(bind-term p x) (· ← (→ (bind-in p x)) ×)]
-  [(bind-term t x) (· ← (t))])
+  bind-name : x t -> (t ...)
+  [(bind-name x x) (×)]
+  [(bind-name x v)
+   (,@(term swap) → (↓ t ...) ×)
+   (where (t ...) (bind-body x v))]
+  [(bind-name x t) (· ← (t))])
 
 
 (define-metafunction bound
-  rec : (x) p -> p
-  [(rec (x) p) (,@(term Y) (= (x) p))])
+  rec : (x) v -> v
+  [(rec (x) v) (,@(term Y) (= (x) v))])

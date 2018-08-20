@@ -6,43 +6,43 @@
 
 
 (define-language base
-  (p (t ...))
-  (t · ← → ↓ × p))
+  (v (t ...))
+  (t · ← → ↓ × v))
 
 
 (define eval
   (reduction-relation
    base
-   #:domain p
+   #:domain v
 
-   (--> (t ... · (t_t ...) p ...)
-        (t ... t_t ... p ...)
+   (--> (t ... · (t_t ...) v ...)
+        (t ... t_t ... v ...)
         Apply)
 
-   (--> (t ... ← (t_t ...) p_t p ...)
-        (t ... (p_t t_t ...) p ...)
-        Left)
+   (--> (t ... ← (t_t ...) v_t v ...)
+        (t ... (v_t t_t ...) v ...)
+        After)
 
-   (--> (t ... → (t_t ...) p_t p ...)
-        (t ... (t_t ... p_t) p ...)
-        Right)
+   (--> (t ... → (t_t ...) v_t v ...)
+        (t ... (t_t ... v_t) v ...)
+        Before)
 
-   (--> (t ... ↓ p_d p ...)
-        (t ... p ...)
+   (--> (t ... ↓ v_d v ...)
+        (t ... v ...)
         Drop)
 
-   (--> (t ... × p_c p ...)
-        (t ... p_c p_c p ...)
+   (--> (t ... × v_c v ...)
+        (t ... v_c v_c v ...)
         Copy)))
 
 
 (define-term apply ; (s → t) s → t
   ·)
 
-(define-term left ; (s → t) A u → (s → A t) u
+(define-term after ; (s → t) A u → (s → A t) u
   ←)
 
-(define-term right ; (A s → t) A u → (s → t) u
+(define-term before ; (A s → t) A u → (s → t) u
   →)
 
 (define-term drop ; A s → s
@@ -54,7 +54,6 @@
 
 (define-term swap ; A B s → B A s
   (· ← ← ()))
-
 
 (define-term apply-with ; A (A s → t) s → t
   (· ,@(term swap)))
@@ -172,8 +171,8 @@
 (define-term cons ; A List A s → List A s
   (→ → (,@(term apply-with) ,@(term under) (,@(term under) (·) ,@(term copy-over)))))
 
-(define-term head ; List A s → Option A s
+(define-term head                       ; List A s → Option A s
   (,@(term apply-with) (,@(term some) ,@(term under) (↓)) ,@(term none)))
 
-(define-term map-list ; (A s → B s) List A s → List B s
+(define-term map-list                   ; (A s → B s) List A s → List B s
   (,@(term apply-with) ,@(term compose) cons ,@(term under₂) nil))
